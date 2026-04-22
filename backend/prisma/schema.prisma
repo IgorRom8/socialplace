@@ -1,0 +1,105 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Get a free hosted Postgres database in seconds: `npx create-db`
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+model User {
+  id             String          @id @default(cuid())
+  email          String          @unique
+  passwordHash   String
+  fullName       String
+  avatarUrl      String?
+  bio            String?
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  posts          Post[]
+  comments       Comment[]
+  likes          Like[]
+  sentRequests   FriendRequest[] @relation("sentRequests")
+  receivedRequests FriendRequest[] @relation("receivedRequests")
+  sentMessages   DirectMessage[] @relation("sentMessages")
+  receivedMessages DirectMessage[] @relation("receivedMessages")
+}
+
+model Post {
+  id          String      @id @default(cuid())
+  authorId    String
+  content     String
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+  author      User        @relation(fields: [authorId], references: [id], onDelete: Cascade)
+  comments    Comment[]
+  likes       Like[]
+  images      PostImage[]
+  musicTracks PostMusic[]
+}
+
+model Comment {
+  id        String   @id @default(cuid())
+  postId    String
+  authorId  String
+  content   String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  author    User     @relation(fields: [authorId], references: [id], onDelete: Cascade)
+}
+
+model Like {
+  id        String   @id @default(cuid())
+  postId    String
+  userId    String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id], onDelete: Cascade)
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([postId, userId])
+}
+
+model FriendRequest {
+  id          String   @id @default(cuid())
+  senderId    String
+  receiverId  String
+  status      String   @default("pending")
+  createdAt   DateTime @default(now())
+  respondedAt DateTime?
+  sender      User     @relation("sentRequests", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver    User     @relation("receivedRequests", fields: [receiverId], references: [id], onDelete: Cascade)
+
+  @@unique([senderId, receiverId])
+}
+
+model PostImage {
+  id     String @id @default(cuid())
+  postId String
+  url    String
+  post   Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model PostMusic {
+  id       String @id @default(cuid())
+  postId   String
+  title    String
+  artist   String
+  audioUrl String
+  post     Post   @relation(fields: [postId], references: [id], onDelete: Cascade)
+}
+
+model DirectMessage {
+  id              String   @id @default(cuid())
+  senderId        String
+  receiverId      String
+  content         String
+  attachmentUrl   String?
+  attachmentType  String?
+  createdAt       DateTime @default(now())
+  sender          User     @relation("sentMessages", fields: [senderId], references: [id], onDelete: Cascade)
+  receiver        User     @relation("receivedMessages", fields: [receiverId], references: [id], onDelete: Cascade)
+}

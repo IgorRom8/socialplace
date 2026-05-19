@@ -94,13 +94,19 @@ npm run dev
 1. Vercel → ваш проект → **Settings** → **General** → **Root Directory** → **Edit** → укажите **`frontend`** → Save.
 2. В том же разделе **Framework Preset** выберите **Next.js** (не «Other» / пусто). Если там **нет фреймворка**, маршруты приложения после билда могут не подключиться и вы увидите **404**. В репозитории добавлен файл `frontend/vercel.json` с `"framework": "nextjs"` — после деплоя Vercel подхватит Next.
 3. **Output directory** для Next.js оставьте **пустым** (по умолчанию), не задавайте `out` или `.next` вручную, если не делаете static export.
-4. **Environment Variables** (Settings → Environment Variables): если API уже выложен отдельно, добавьте **`NEXT_PUBLIC_API_BASE`** = публичный URL бэкенда (например `https://api.ваш-домен.ru`), без слэша на конце. Иначе в проде запросы пойдут не туда.
+4. **Environment Variables** (Settings → Environment Variables): **`NEXT_PUBLIC_API_BASE`** = публичный **HTTPS-URL вашего Nest** (Railway, Render, VPS, и т.д.), **без** слэша на конце. Без этой переменной регистрация/логин с сайта на `*.vercel.app` не работают (запросы попадали бы во фронт и давали HTML 404).
 5. **Deployments** → последний деплой → **⋯** → **Redeploy** (или новый push в репозиторий).
 
 Если 404 остаётся, откройте вкладку деплоя → **Building** и проверьте, что билд **успешен** (не Failed).
+
+## Деплой бэкенда (Railway / Render, Docker)
+
+На **Vercel** этот NestJS-проект не заменяет VPS: API и Socket.IO нужно поднять отдельно. В репозитории есть **`backend/Dockerfile`**: при старте контейнера выполняются миграции Prisma и запускается `dist/main.js`.
+
+Пошагово (PostgreSQL, переменные `DATABASE_URL` / `JWT_SECRET`, домен и связка с **`NEXT_PUBLIC_API_BASE`** на Vercel): **[deploy/cloud/README.md](deploy/cloud/README.md)**.
 
 ## Частые проблемы
 
 - **`DATABASE_URL is not set`** — создайте `backend/.env` и пропишите подключение к PostgreSQL.
 - **Ошибки миграций** — проверьте, что БД доступна и строка в `DATABASE_URL` верная; при первом развёртывании используйте `npx prisma migrate deploy`.
-- **`404` на Vercel** — в настройках проекта укажите **Root Directory: `frontend`** (см. раздел «Деплой фронта на Vercel»).
+- **Регистрация на Vercel падает с HTML / 404** — задайте **`NEXT_PUBLIC_API_BASE`** на URL бэкенда и пересоберите. Свой nginx с API на том же домене: **`NEXT_PUBLIC_API_SAME_ORIGIN=1`**.

@@ -2,7 +2,8 @@
  * Базовый URL Nest API (REST + Socket.IO на том же порту).
  * Явно задайте NEXT_PUBLIC_API_BASE, если API на другом хосте/порту.
  * Иначе в браузере: LAN с портом фронта (например :3000) → API на том же хосте :4000.
- * Если страница на стандартном 80/443 (nginx), используется тот же origin — API через прокси.
+ * Если страница на стандартном 80/443 за nginx с прокси API на тот же хост — задайте
+ * NEXT_PUBLIC_API_SAME_ORIGIN=1, иначе для *.vercel.app / *.now.sh тот же origin даст запросы в Next, а не в Nest.
  * Для IPv6 host в URL строится как [addr]:port.
  */
 function normalizeApiBase(raw: string): string {
@@ -33,7 +34,15 @@ export function getApiBase(): string {
       const defaultPort = protocol === 'https:' ? '443' : '80';
       const effective = port || defaultPort;
       if (effective === '80' || effective === '443') {
-        return normalizeApiBase(`${protocol}//${host}`);
+        const onVercel =
+          hostname.endsWith('.vercel.app') || hostname.endsWith('.now.sh');
+        const sameOriginApi =
+          typeof process !== 'undefined' &&
+          process.env.NEXT_PUBLIC_API_SAME_ORIGIN === '1';
+        if (!onVercel || sameOriginApi) {
+          return normalizeApiBase(`${protocol}//${host}`);
+        }
+        return FALLBACK_LOCAL;
       }
       return normalizeApiBase(`${protocol}//${host}:4000`);
     }

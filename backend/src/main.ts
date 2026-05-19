@@ -1,13 +1,14 @@
 import { ValidationPipe } from '@nestjs/common';
 import { NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
-import { join } from 'path';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './filters/all-exceptions.filter';
 import { ensureUploadDirs, UPLOADS_ROOT } from './upload.constants';
 
 async function bootstrap() {
   ensureUploadDirs();
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  app.useGlobalFilters(new AllExceptionsFilter());
   app.enableCors();
   app.useStaticAssets(UPLOADS_ROOT, { prefix: '/uploads' });
   app.useGlobalPipes(

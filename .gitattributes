@@ -1,0 +1,2 @@
+# Docker / Linux entrypoints must use LF line endings
+backend/scripts/*.sh text eol=lf

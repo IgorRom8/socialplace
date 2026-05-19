@@ -9,8 +9,23 @@ function isNetworkFetchError(e: unknown): boolean {
 
 function apiUnreachableError(): Error {
   return new Error(
-    `Сервер API недоступен (${getApiBase()}). Запустите бэкенд в папке backend: npm run start:dev или npm run start`,
+    `Сервер API недоступен (${getApiBase()}). Локально: запустите backend (npm run start:dev). ` +
+      `Если сайт на Vercel — в Environment Variables задайте NEXT_PUBLIC_API_BASE с публичным URL Nest (https://...).`,
   );
+}
+
+function htmlInsteadOfApiError(): Error {
+  return new Error(
+    'Ответ пришёл как HTML (страница сайта), а не JSON API. Обычно это значит, что запрос ушёл на Vercel-фронт. ' +
+      'В панели Vercel добавьте NEXT_PUBLIC_API_BASE = URL вашего бэкенда и пересоберите деплой.',
+  );
+}
+
+function throwIfHtmlApiResponse(text: string): void {
+  const t = text.trimStart();
+  if (t.startsWith('<!DOCTYPE') || t.startsWith('<html')) {
+    throw htmlInsteadOfApiError();
+  }
 }
 
 export async function apiRequest<T>(path: string, options?: RequestInit): Promise<T> {
@@ -23,11 +38,18 @@ export async function apiRequest<T>(path: string, options?: RequestInit): Promis
     }
     throw e;
   }
+  const errText = !response.ok ? await response.text() : '';
   if (!response.ok) {
-    const errText = await response.text();
+    throwIfHtmlApiResponse(errText);
     throw new Error(errText || 'Request failed');
   }
-  return response.json() as Promise<T>;
+  const body = await response.text();
+  throwIfHtmlApiResponse(body);
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error(body.slice(0, 200) || 'Invalid JSON from API');
+  }
 }
 
 /** POST multipart (без заголовка Content-Type — браузер выставит boundary) */
@@ -44,9 +66,16 @@ export async function apiFormPost<T>(path: string, formData: FormData): Promise<
     }
     throw e;
   }
+  const errText = !response.ok ? await response.text() : '';
   if (!response.ok) {
-    const errText = await response.text();
+    throwIfHtmlApiResponse(errText);
     throw new Error(errText || 'Request failed');
   }
-  return response.json() as Promise<T>;
+  const body = await response.text();
+  throwIfHtmlApiResponse(body);
+  try {
+    return JSON.parse(body) as T;
+  } catch {
+    throw new Error(body.slice(0, 200) || 'Invalid JSON from API');
+  }
 }

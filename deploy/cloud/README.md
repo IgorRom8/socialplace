@@ -8,7 +8,7 @@
 
 | Переменная       | Обязательно | Описание |
 |------------------|-------------|----------|
-| `DATABASE_URL`   | Да          | Строка PostgreSQL для Prisma (`postgresql://...`). Для **Render Postgres** при ошибке **SSL/TLS required** добавьте в URL `?sslmode=require` **или** задайте **`DATABASE_SSL=require`** — в коде для хостов `*.render.com` TLS включается автоматически. |
+| `DATABASE_URL`   | Да          | Строка PostgreSQL для Prisma. На Render обычно подходит **Internal Database URL**; при ошибках подключения добавьте в конец `?sslmode=require` или `&sslmode=require`. |
 | `JWT_SECRET`     | Да (прод)   | Длинная случайная строка для подписи JWT. |
 | `PORT`           | Нет         | Платформа часто задаёт сама (Railway/Render). Иначе **4000**. |
 | `HOST`           | Нет         | В образе по умолчанию контейнер слушает **0.0.0.0**. |

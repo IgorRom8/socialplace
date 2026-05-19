@@ -192,7 +192,7 @@ export default function ProfilePage() {
                     <span>Личная страница</span>
                   </div>
                   <div>
-                    <b>Social Place</b>
+                    <b>Tent</b>
                     <span>Публикации и медиа</span>
                   </div>
                 </div>

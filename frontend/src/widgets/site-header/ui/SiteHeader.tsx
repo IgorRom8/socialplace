@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { useTheme } from '@/features/theme-switcher/model/useTheme';
 import { HeaderUserSearch } from '@/widgets/user-search/ui/HeaderUserSearch';
@@ -9,8 +10,16 @@ export function SiteHeader() {
 
   return (
     <header className="vkTopBar">
-      <Link href="/" className="vkLogo" title="Social Place">
-        SP
+      <Link href="/" className="vkBrand" title="Tent">
+        <Image
+          src="/tent-logo.png"
+          alt=""
+          width={44}
+          height={44}
+          className="vkBrandLogo"
+          priority
+        />
+        <span className="vkBrandName">Tent</span>
       </Link>
       <div className="topbarSearchSlot vkTopSearch">
         <HeaderUserSearch />

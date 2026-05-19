@@ -1,14 +1,23 @@
 /**
  * Базовый URL Nest API (REST + Socket.IO на том же порту).
  * Явно задайте NEXT_PUBLIC_API_BASE, если API на другом хосте/порту.
- * Иначе в браузере: при открытии сайта по IP в LAN (например 192.168.x.x:3000)
- * API берётся с того же хоста и порта 4000 — иначе с телефона 127.0.0.1 не ваш ПК.
+ * Иначе в браузере: LAN с портом фронта (например :3000) → API на том же хосте :4000.
+ * Если страница на стандартном 80/443 (nginx), используется тот же origin — API через прокси.
+ * Для IPv6 host в URL строится как [addr]:port.
  */
 function normalizeApiBase(raw: string): string {
   return raw.replace(/\/+$/, '');
 }
 
 const FALLBACK_LOCAL = 'http://127.0.0.1:4000';
+
+/** IPv6 host в URL должен быть в квадратных скобках, иначе запись ломается на `:`. */
+function hostForApiUrl(hostname: string): string {
+  if (hostname.includes(':')) {
+    return `[${hostname}]`;
+  }
+  return hostname;
+}
 
 export function getApiBase(): string {
   const fromEnv =
@@ -18,9 +27,15 @@ export function getApiBase(): string {
   if (fromEnv) return normalizeApiBase(fromEnv);
 
   if (typeof window !== 'undefined') {
-    const { protocol, hostname } = window.location;
+    const { protocol, hostname, port } = window.location;
     if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
-      return normalizeApiBase(`${protocol}//${hostname}:4000`);
+      const host = hostForApiUrl(hostname);
+      const defaultPort = protocol === 'https:' ? '443' : '80';
+      const effective = port || defaultPort;
+      if (effective === '80' || effective === '443') {
+        return normalizeApiBase(`${protocol}//${host}`);
+      }
+      return normalizeApiBase(`${protocol}//${host}:4000`);
     }
   }
 

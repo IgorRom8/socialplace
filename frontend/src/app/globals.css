@@ -1081,19 +1081,27 @@ body[data-theme='light'] .vkPage {
   backdrop-filter: blur(12px);
 }
 
-.vkLogo {
+.vkBrand {
   flex: 0 0 auto;
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  color: var(--strong);
+}
+
+.vkBrandLogo {
   width: 44px;
   height: 44px;
   border-radius: 12px;
-  background: var(--accent);
-  color: var(--bg);
+  flex-shrink: 0;
+  object-fit: cover;
+}
+
+.vkBrandName {
   font-weight: 800;
-  font-size: 15px;
-  display: grid;
-  place-items: center;
-  text-decoration: none;
-  letter-spacing: -0.02em;
+  font-size: 1.125rem;
+  letter-spacing: -0.03em;
 }
 
 .vkTopSearch {

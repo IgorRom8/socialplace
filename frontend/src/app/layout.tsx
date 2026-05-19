@@ -3,8 +3,8 @@ import "./globals.css";
 import { FriendRequestNotifications } from "@/widgets/friend-request-notifications/ui/FriendRequestNotifications";
 
 export const metadata: Metadata = {
-  title: "Social Place",
-  description: "Social network MVP on Next.js + NestJS + Prisma",
+  title: "Tent",
+  description: "Tent — соцсеть на Next.js + NestJS + Prisma",
 };
 
 export default function RootLayout({

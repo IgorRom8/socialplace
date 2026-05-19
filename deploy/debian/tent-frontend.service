@@ -1,0 +1,16 @@
+[Unit]
+Description=Tent Next.js
+After=network.target tent-backend.service
+
+[Service]
+Type=simple
+User=tent
+Group=tent
+WorkingDirectory=/opt/tent/app/frontend
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node /opt/tent/app/frontend/node_modules/next/dist/bin/next start -p 3000 -H 127.0.0.1
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

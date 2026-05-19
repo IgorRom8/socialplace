@@ -1,0 +1,17 @@
+[Unit]
+Description=Tent NestJS API
+After=network.target postgresql.service
+
+[Service]
+Type=simple
+User=tent
+Group=tent
+WorkingDirectory=/opt/tent/app/backend
+EnvironmentFile=-/opt/tent/app/backend/.env
+Environment=NODE_ENV=production
+ExecStart=/usr/bin/node --max-http-header-size=1048576 /opt/tent/app/backend/dist/main.js
+Restart=on-failure
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target

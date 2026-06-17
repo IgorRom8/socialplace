@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { PostEntity } from '@/entities/post/model/types';
+import { useAdminModeration } from '@/features/admin/model/useAdminMode';
 import { resolvePublicMediaUrl } from '@/shared/lib/mediaUrl';
 import { PostAudioPlayer } from '@/shared/ui/PostAudioPlayer';
 
@@ -14,6 +15,7 @@ type FeedWidgetProps = {
   toggleLike: (postId: string) => Promise<void>;
   addComment: (postId: string) => Promise<void>;
   canInteract: boolean;
+  onChanged?: () => void | Promise<void>;
 };
 
 export function FeedWidget({
@@ -24,8 +26,10 @@ export function FeedWidget({
   toggleLike,
   addComment,
   canInteract,
+  onChanged,
 }: FeedWidgetProps) {
   const [activeCommentPostId, setActiveCommentPostId] = useState<string | null>(null);
+  const { isAdmin, deletePost, deleteComment } = useAdminModeration(onChanged);
 
   async function submitComment(postId: string) {
     await addComment(postId);
@@ -39,20 +43,31 @@ export function FeedWidget({
       <h2>{title}</h2>
       {feed.map((post) => (
         <article key={post.id} className="post">
-          <Link className="author authorLink postAuthorLink" href={`/profile/${post.author.id}`}>
-            {post.author.avatarUrl ? (
-              <img
-                src={resolvePublicMediaUrl(post.author.avatarUrl)}
-                alt=""
-                className="postAuthorAvatar"
-              />
-            ) : (
-              <span className="postAuthorAvatar postAuthorAvatar--placeholder" aria-hidden>
-                {post.author.fullName.slice(0, 1).toUpperCase()}
-              </span>
+          <div className="postHeaderRow">
+            <Link className="author authorLink postAuthorLink" href={`/profile/${post.author.id}`}>
+              {post.author.avatarUrl ? (
+                <img
+                  src={resolvePublicMediaUrl(post.author.avatarUrl)}
+                  alt=""
+                  className="postAuthorAvatar"
+                />
+              ) : (
+                <span className="postAuthorAvatar postAuthorAvatar--placeholder" aria-hidden>
+                  {post.author.fullName.slice(0, 1).toUpperCase()}
+                </span>
+              )}
+              <span className="postAuthorName">{post.author.fullName}</span>
+            </Link>
+            {isAdmin && (
+              <button
+                type="button"
+                className="adminModBtn ghost"
+                onClick={() => void deletePost(post.id)}
+              >
+                Удалить пост
+              </button>
             )}
-            <span className="postAuthorName">{post.author.fullName}</span>
-          </Link>
+          </div>
           <p>{post.content}</p>
           {post.images.map((img) => (
             <img
@@ -142,6 +157,17 @@ export function FeedWidget({
                           </Link>
                           <p className="postCommentText">{comment.content}</p>
                         </div>
+                        {isAdmin && (
+                          <button
+                            type="button"
+                            className="adminModBtn adminModBtn--icon ghost"
+                            aria-label="Удалить комментарий"
+                            title="Удалить комментарий"
+                            onClick={() => void deleteComment(comment.id)}
+                          >
+                            ×
+                          </button>
+                        )}
                       </li>
                     );
                   })
@@ -177,7 +203,9 @@ export function FeedWidget({
           )}
         </article>
       ))}
-      {!canInteract && <p>Лайки и комментарии доступны только авторизованным пользователям.</p>}
+      {!canInteract && !isAdmin && (
+        <p>Лайки и комментарии доступны только авторизованным пользователям.</p>
+      )}
     </section>
   );
 }

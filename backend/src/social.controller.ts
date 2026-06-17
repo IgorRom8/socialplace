@@ -24,6 +24,7 @@ import { ChatGateway } from './chat.gateway';
 import { SocialService } from './social.service';
 import {
   AVATAR_UPLOAD_MAX_FILE_BYTES,
+  COVER_UPLOAD_MAX_FILE_BYTES,
   DM_AUDIO_DIR,
   DM_IMAGES_DIR,
   DM_UPLOAD_MAX_FILE_BYTES,
@@ -31,6 +32,7 @@ import {
   POST_IMAGES_DIR,
   POST_UPLOAD_MAX_FILE_BYTES,
   USER_AVATARS_DIR,
+  USER_COVERS_DIR,
   publicPathForDmAudio,
   publicPathForDmImage,
   publicPathForPostAudio,
@@ -112,7 +114,50 @@ export class SocialController {
       email: profile.email,
       fullName: profile.fullName,
       avatarUrl: profile.avatarUrl,
+      coverUrl: profile.coverUrl,
     };
+  }
+
+  @Post('me/cover')
+  @UseInterceptors(
+    FileInterceptor('cover', {
+      storage: diskStorage({
+        destination: (_req, _file, cb) => cb(null, USER_COVERS_DIR),
+        filename: (_req, file, cb) => {
+          const ext = extname(file.originalname || '').toLowerCase();
+          cb(null, `${randomUUID()}${ext || ''}`);
+        },
+      }),
+      limits: { fileSize: COVER_UPLOAD_MAX_FILE_BYTES },
+      fileFilter: (_req, file, cb) => {
+        const ok = /^image\/(jpeg|jpg|png|gif|webp)$/i.test(file.mimetype);
+        if (!ok) {
+          cb(new BadRequestException('Допустимы только изображения JPEG, PNG, GIF или WebP'), false);
+          return;
+        }
+        cb(null, true);
+      },
+    }),
+  )
+  async uploadMyCover(@Query('token') token: string, @UploadedFile() file?: Express.Multer.File) {
+    if (!token) {
+      throw new BadRequestException('token query parameter is required');
+    }
+    if (!file) {
+      throw new BadRequestException('Файл шапки обязателен');
+    }
+    const payload = this.jwtService.verify<Record<string, unknown>>(token);
+    const rawId = payload.userId ?? payload.sub;
+    let userId =
+      typeof rawId === 'string' ? rawId.trim() : rawId != null ? String(rawId).trim() : '';
+    const email = typeof payload.email === 'string' ? payload.email.trim() : '';
+    if (!userId && email) {
+      userId = (await this.socialService.findUserIdByEmail(email)) ?? '';
+    }
+    if (!userId) {
+      throw new UnauthorizedException('Invalid token: missing user id');
+    }
+    return this.socialService.updateUserCover(userId, file.filename);
   }
 
   @Post('me/avatar')

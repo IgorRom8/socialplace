@@ -22,7 +22,9 @@ export default function ProfilePage() {
   const [profileFeed, setProfileFeed] = useState<PostEntity[]>([]);
   const [commentMap, setCommentMap] = useState<Record<string, string>>({});
   const [avatarBusy, setAvatarBusy] = useState(false);
+  const [coverBusy, setCoverBusy] = useState(false);
   const avatarInputRef = useRef<HTMLInputElement>(null);
+  const coverInputRef = useRef<HTMLInputElement>(null);
   const authHeaders = useMemo(() => ({ 'Content-Type': 'application/json' }), []);
 
   async function loadProfileFeed(currentUserId: string) {
@@ -133,6 +135,36 @@ export default function ProfilePage() {
     }
   }
 
+  async function onCoverFile(e: ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file || !user) return;
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    if (!/^image\/(jpeg|png|gif|webp)$/i.test(file.type)) {
+      window.alert('Выберите изображение JPEG, PNG, GIF или WebP.');
+      return;
+    }
+    if (file.size > 10 * 1024 * 1024) {
+      window.alert('Файл не больше 10 МБ.');
+      return;
+    }
+    setCoverBusy(true);
+    try {
+      const fd = new FormData();
+      fd.append('cover', file);
+      const res = await apiFormPost<{ coverUrl: string }>(
+        `/social/me/cover?token=${encodeURIComponent(token)}`,
+        fd,
+      );
+      setUser((prev) => (prev ? { ...prev, coverUrl: res.coverUrl } : prev));
+    } catch {
+      window.alert('Не удалось загрузить шапку профиля.');
+    } finally {
+      setCoverBusy(false);
+    }
+  }
+
   return (
     <main className="vkPage">
       <div className="vkLayout">
@@ -141,8 +173,35 @@ export default function ProfilePage() {
           <AppSidebar active="profile" />
           <section className="vkMain profilePage">
             <section className="card profileHeroCard">
-              <div className="profileCover" />
-              <div className="profileHeroContent">
+              <div className="profileCover">
+                {user?.coverUrl ? (
+                  <img
+                    src={resolvePublicMediaUrl(user.coverUrl)}
+                    alt=""
+                    className="profileCoverImg"
+                  />
+                ) : null}
+                {user && (
+                  <>
+                    <input
+                      ref={coverInputRef}
+                      type="file"
+                      accept="image/jpeg,image/png,image/gif,image/webp,.jpg,.jpeg,.png,.gif,.webp"
+                      className="profileAvatarFileInput"
+                      onChange={(ev) => void onCoverFile(ev)}
+                    />
+                    <button
+                      type="button"
+                      className="profileCoverChange ghost"
+                      disabled={coverBusy}
+                      onClick={() => coverInputRef.current?.click()}
+                    >
+                      {coverBusy ? 'Загрузка…' : 'Сменить шапку'}
+                    </button>
+                  </>
+                )}
+              </div>
+              <div className="profileHeroContent profileHeroContent--own">
                 <div className="profileAvatarColumn">
                   <div className="profileAvatar" aria-hidden>
                     {user?.avatarUrl ? (
@@ -175,26 +234,30 @@ export default function ProfilePage() {
                     </>
                   )}
                 </div>
-                <div className="profileMainInfo">
-                  <h2>{displayName}</h2>
-                  <p className="muted">{user?.email}</p>
-                </div>
-                <div className="profileStats">
-                  {user && (
-                    <div>
-                      <button className="logoutButton" onClick={logout}>
-                        Выйти
-                      </button>
+                <div className="profileHeroBody">
+                  <div className="profileHeroHead">
+                    <div className="profileMainInfo">
+                      <h2>{displayName}</h2>
+                      <p className="muted profileEmail">{user?.email}</p>
                     </div>
+                    {user && (
+                      <div className="profileHeroActions">
+                        <button type="button" className="logoutButton ghost" onClick={logout}>
+                          Выйти
+                        </button>
+                      </div>
+                    )}
+                  </div>
+                  {user && (
+                    <p className="profilePostCount muted">
+                      {profileFeed.length}{' '}
+                      {profileFeed.length === 1
+                        ? 'публикация'
+                        : profileFeed.length >= 2 && profileFeed.length <= 4
+                          ? 'публикации'
+                          : 'публикаций'}
+                    </p>
                   )}
-                  <div>
-                    <b>Profile</b>
-                    <span>Личная страница</span>
-                  </div>
-                  <div>
-                    <b>Tent</b>
-                    <span>Публикации и медиа</span>
-                  </div>
                 </div>
               </div>
             </section>
@@ -204,10 +267,12 @@ export default function ProfilePage() {
                 <p className="muted">Загрузка профиля...</p>
               ) : user ? (
                 <>
-                  <h2>Публикации</h2>
-                  <button onClick={() => setIsCreateOpen((prev) => !prev)}>
-                    {isCreateOpen ? 'Скрыть форму поста' : 'Сделать новый пост'}
-                  </button>
+                  <div className="profileSectionHeader">
+                    <h2>Публикации</h2>
+                    <button type="button" onClick={() => setIsCreateOpen((prev) => !prev)}>
+                      {isCreateOpen ? 'Скрыть форму' : 'Новый пост'}
+                    </button>
+                  </div>
                   {isCreateOpen && (
                     <CreatePostCard
                       postContent={postContent}
@@ -239,6 +304,7 @@ export default function ProfilePage() {
                 toggleLike={toggleLike}
                 addComment={addComment}
                 canInteract={Boolean(user)}
+                onChanged={() => (user ? loadProfileFeed(user.userId) : undefined)}
               />
             </section>
           </section>

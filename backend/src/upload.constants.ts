@@ -5,6 +5,7 @@ export const UPLOADS_ROOT = join(process.cwd(), 'uploads');
 export const POST_IMAGES_DIR = join(UPLOADS_ROOT, 'posts', 'images');
 export const POST_AUDIO_DIR = join(UPLOADS_ROOT, 'posts', 'audio');
 export const USER_AVATARS_DIR = join(UPLOADS_ROOT, 'avatars');
+export const USER_COVERS_DIR = join(UPLOADS_ROOT, 'covers');
 export const DM_IMAGES_DIR = join(UPLOADS_ROOT, 'dm', 'images');
 export const DM_AUDIO_DIR = join(UPLOADS_ROOT, 'dm', 'audio');
 
@@ -14,11 +15,21 @@ export const POST_UPLOAD_MAX_FILE_BYTES = 100 * 1024 * 1024;
 /** Аватар профиля: POST /social/me/avatar */
 export const AVATAR_UPLOAD_MAX_FILE_BYTES = 5 * 1024 * 1024;
 
+/** Шапка профиля: POST /social/me/cover */
+export const COVER_UPLOAD_MAX_FILE_BYTES = 10 * 1024 * 1024;
+
 /** Вложения в личных сообщениях: POST /social/messages/upload */
 export const DM_UPLOAD_MAX_FILE_BYTES = 50 * 1024 * 1024;
 
 export function ensureUploadDirs() {
-  for (const dir of [POST_IMAGES_DIR, POST_AUDIO_DIR, USER_AVATARS_DIR, DM_IMAGES_DIR, DM_AUDIO_DIR]) {
+  for (const dir of [
+    POST_IMAGES_DIR,
+    POST_AUDIO_DIR,
+    USER_AVATARS_DIR,
+    USER_COVERS_DIR,
+    DM_IMAGES_DIR,
+    DM_AUDIO_DIR,
+  ]) {
     if (!existsSync(dir)) {
       mkdirSync(dir, { recursive: true });
     }
@@ -35,6 +46,10 @@ export function publicPathForPostAudio(filename: string) {
 
 export function publicPathForUserAvatar(filename: string) {
   return `/uploads/avatars/${filename}`;
+}
+
+export function publicPathForUserCover(filename: string) {
+  return `/uploads/covers/${filename}`;
 }
 
 export function publicPathForDmImage(filename: string) {

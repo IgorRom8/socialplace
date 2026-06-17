@@ -88,6 +88,7 @@ export function HomePage() {
                 toggleLike={toggleLike}
                 addComment={addComment}
                 canInteract={Boolean(user)}
+                onChanged={loadFeed}
               />
             </div>
           </section>

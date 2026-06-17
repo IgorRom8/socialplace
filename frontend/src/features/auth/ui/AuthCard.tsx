@@ -3,6 +3,7 @@ import { FormEvent } from 'react';
 type AuthCardProps = {
   isRegister: boolean;
   authForm: { fullName: string; email: string; password: string };
+  authError?: string;
   setIsRegister: (value: boolean) => void;
   setAuthForm: (value: { fullName: string; email: string; password: string }) => void;
   onSubmit: (e: FormEvent) => Promise<void>;
@@ -11,6 +12,7 @@ type AuthCardProps = {
 export function AuthCard({
   isRegister,
   authForm,
+  authError,
   setIsRegister,
   setAuthForm,
   onSubmit,
@@ -18,6 +20,11 @@ export function AuthCard({
   return (
     <section className="card">
       <h2>{isRegister ? 'Регистрация' : 'Вход'}</h2>
+      {authError ? (
+        <p className="authError" role="alert">
+          {authError}
+        </p>
+      ) : null}
       <form onSubmit={onSubmit} className="grid">
         {isRegister && (
           <input
@@ -39,7 +46,11 @@ export function AuthCard({
         />
         <button type="submit">{isRegister ? 'Создать аккаунт' : 'Войти'}</button>
       </form>
-      <button onClick={() => setIsRegister(!isRegister)} className="ghost authSwitchButton">
+      <button
+        type="button"
+        onClick={() => setIsRegister(!isRegister)}
+        className="ghost authSwitchButton"
+      >
         {isRegister ? 'Уже есть аккаунт? Войти' : 'Нет аккаунта? Регистрация'}
       </button>
     </section>

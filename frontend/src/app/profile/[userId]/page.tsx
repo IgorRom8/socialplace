@@ -4,8 +4,9 @@ import { useParams, useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 import { PostEntity } from '@/entities/post/model/types';
 import { User } from '@/entities/user/model/types';
-import { AppSidebar } from '@/widgets/app-sidebar/ui/AppSidebar';
+import { useAdminModeration } from '@/features/admin/model/useAdminMode';
 import { FeedWidget } from '@/widgets/feed/ui/FeedWidget';
+import { AppSidebar } from '@/widgets/app-sidebar/ui/AppSidebar';
 import { apiRequest } from '@/shared/api/http';
 import { SiteHeader } from '@/widgets/site-header/ui/SiteHeader';
 import { resolvePublicMediaUrl } from '@/shared/lib/mediaUrl';
@@ -16,6 +17,8 @@ type PublicUserProfile = {
   email?: string;
   bio?: string | null;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
+  isBanned?: boolean;
 };
 
 export default function PublicProfilePage() {
@@ -34,6 +37,27 @@ export default function PublicProfilePage() {
   const [outgoingRequestId, setOutgoingRequestId] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState('');
+
+  async function reloadProfile() {
+    if (!routePeerId) return;
+    const data = await apiRequest<PublicUserProfile>(
+      `/social/users/${encodeURIComponent(routePeerId)}`,
+    );
+    setProfile(data);
+  }
+
+  const reloadFeed = async () => {
+    if (!profile?.id) return;
+    const posts = await apiRequest<PostEntity[]>(
+      `/social/users/${encodeURIComponent(profile.id)}/posts`,
+    );
+    setFeed(posts);
+  };
+
+  const { isAdmin, banUser, unbanUser } = useAdminModeration(async () => {
+    await reloadProfile();
+    await reloadFeed();
+  });
 
   useEffect(() => {
     const token = localStorage.getItem('token');
@@ -128,10 +152,18 @@ export default function PublicProfilePage() {
         <SiteHeader />
         <div className="vkColumns">
           <AppSidebar active="other" />
-          <section className="vkMain">
+          <section className="vkMain profilePage">
             {!isLoading && !error && profile && (
               <section className="card profileHeroCard">
-                <div className="profileCover" />
+                <div className="profileCover">
+                  {profile.coverUrl ? (
+                    <img
+                      src={resolvePublicMediaUrl(profile.coverUrl)}
+                      alt=""
+                      className="profileCoverImg"
+                    />
+                  ) : null}
+                </div>
                 <div className="profileHeroContent profileHeroContent--publicUser">
                   <div className="profileAvatar" aria-hidden>
                     {profile.avatarUrl ? (
@@ -145,11 +177,45 @@ export default function PublicProfilePage() {
                     )}
                   </div>
                   <div className="profileHeroTextColumn">
-                    <div className="profileMainInfo">
-                      <h2>{profile.fullName}</h2>
-                      <p className="muted">{profile.email ?? 'Email скрыт'}</p>
-                      {profile.bio && <p className="muted">{profile.bio}</p>}
+                    <div className="profileHeroHead">
+                      <div className="profileMainInfo">
+                        <h2>{profile.fullName}</h2>
+                        <p className="muted profileEmail">{profile.email ?? 'Email скрыт'}</p>
+                        {profile.bio && <p className="muted">{profile.bio}</p>}
+                        <p className="profilePostCount muted">
+                          {feed.length}{' '}
+                          {feed.length === 1
+                            ? 'публикация'
+                            : feed.length >= 2 && feed.length <= 4
+                              ? 'публикации'
+                              : 'публикаций'}
+                        </p>
+                        {profile.isBanned && (
+                          <p className="profileBannedBadge">Аккаунт заблокирован</p>
+                        )}
+                      </div>
                     </div>
+                    {isAdmin && (
+                      <div className="profileFriendActions">
+                        {profile.isBanned ? (
+                          <button
+                            type="button"
+                            className="ghost"
+                            onClick={() => void unbanUser(profile.id, profile.fullName)}
+                          >
+                            Разблокировать
+                          </button>
+                        ) : (
+                          <button
+                            type="button"
+                            className="adminModBtn ghost"
+                            onClick={() => void banUser(profile.id, profile.fullName)}
+                          >
+                            Заблокировать пользователя
+                          </button>
+                        )}
+                      </div>
+                    )}
                     {canManageProfile && (
                       <div className="profileFriendActions">
                         {!outgoingRequestId ? (
@@ -190,6 +256,7 @@ export default function PublicProfilePage() {
                   toggleLike={async () => undefined}
                   addComment={async () => undefined}
                   canInteract={false}
+                  onChanged={reloadFeed}
                 />
               )}
             </section>

@@ -10,7 +10,9 @@ import { PrismaService } from './prisma.service';
 import {
   UPLOADS_ROOT,
   USER_AVATARS_DIR,
+  USER_COVERS_DIR,
   publicPathForUserAvatar,
+  publicPathForUserCover,
 } from './upload.constants';
 
 type CreatePostInput = {
@@ -125,7 +127,7 @@ export class SocialService {
   async getProfileForMe(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, email: true, fullName: true, avatarUrl: true },
+      select: { id: true, email: true, fullName: true, avatarUrl: true, coverUrl: true },
     });
     if (!user) {
       throw new NotFoundException('User not found');
@@ -158,10 +160,35 @@ export class SocialService {
     return { avatarUrl: publicUrl };
   }
 
+  async updateUserCover(userId: string, filename: string) {
+    const publicUrl = publicPathForUserCover(filename);
+    const prev = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { coverUrl: true },
+    });
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { coverUrl: publicUrl },
+    });
+    const old = prev?.coverUrl?.trim();
+    if (old?.startsWith('/uploads/covers/')) {
+      const rel = old.slice('/uploads/'.length);
+      const abs = join(UPLOADS_ROOT, ...rel.split('/'));
+      if (abs.startsWith(USER_COVERS_DIR)) {
+        try {
+          await unlink(abs);
+        } catch {
+          /* ignore */
+        }
+      }
+    }
+    return { coverUrl: publicUrl };
+  }
+
   async getUserProfile(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
-      select: { id: true, fullName: true, email: true, bio: true, avatarUrl: true },
+      select: { id: true, fullName: true, email: true, bio: true, avatarUrl: true, coverUrl: true, isBanned: true },
     });
     if (!user) {
       throw new NotFoundException('User not found');

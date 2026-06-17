@@ -3,4 +3,5 @@ export type User = {
   email: string;
   fullName: string;
   avatarUrl?: string | null;
+  coverUrl?: string | null;
 };

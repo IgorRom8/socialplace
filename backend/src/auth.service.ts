@@ -23,7 +23,7 @@ export class AuthService {
   async register(email: string, password: string, fullName: string) {
     const existing = await this.prisma.user.findUnique({ where: { email } });
     if (existing) {
-      throw new BadRequestException('Email already in use');
+      throw new BadRequestException('Этот email уже занят');
     }
 
     const passwordHash = await bcrypt.hash(password, 10);
@@ -37,7 +37,7 @@ export class AuthService {
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === 'P2002'
       ) {
-        throw new BadRequestException('Email already in use');
+        throw new BadRequestException('Этот email уже занят');
       }
       throw e;
     }
@@ -46,13 +46,24 @@ export class AuthService {
   }
 
   async login(email: string, password: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const normalizedEmail = email.trim().toLowerCase();
+    const user = await this.prisma.user.findFirst({
+      where: {
+        OR: [
+          { email: { equals: normalizedEmail, mode: 'insensitive' } },
+          { fullName: { equals: email.trim(), mode: 'insensitive' } },
+        ],
+      },
+    });
     if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Такого пользователя нет');
+    }
+    if (user.isBanned) {
+      throw new UnauthorizedException('Аккаунт заблокирован администратором');
     }
     const isPasswordValid = await bcrypt.compare(password, user.passwordHash);
     if (!isPasswordValid) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException('Неправильный логин или пароль');
     }
     return this.issueToken(user);
   }

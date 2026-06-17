@@ -865,15 +865,18 @@ body[data-theme='light'] .authError {
 
 .profileHeroCard {
   padding: 0;
-  overflow: hidden;
+  overflow: visible;
   border: 1px solid var(--border);
   border-radius: 16px;
+  isolation: isolate;
 }
 
 .profileCover {
   position: relative;
+  z-index: 1;
   height: 200px;
   overflow: hidden;
+  border-radius: 16px 16px 0 0;
   background: linear-gradient(135deg, #3d4450 0%, #1c1f22 55%, #121417 100%);
 }
 
@@ -910,12 +913,14 @@ body[data-theme='light'] .profileCover {
 }
 
 .profileHeroContent {
+  position: relative;
+  z-index: 2;
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 16px 24px;
   align-items: end;
   padding: 0 24px 24px;
-  margin-top: -42px;
+  margin-top: -48px;
 }
 
 .profileHeroContent .profileMainInfo,
@@ -977,6 +982,8 @@ body[data-theme='light'] .profileCover {
 }
 
 .profileAvatar {
+  position: relative;
+  z-index: 2;
   width: 96px;
   height: 96px;
   border-radius: 999px;
@@ -1004,6 +1011,8 @@ body[data-theme='light'] .profileAvatar {
 }
 
 .profileAvatarColumn {
+  position: relative;
+  z-index: 2;
   display: flex;
   flex-direction: column;
   align-items: flex-start;
@@ -2327,7 +2336,7 @@ body[data-theme='light'] .connectionsMainShell .chatModalOverlay {
   .profileHeroContent--publicUser {
     grid-template-columns: 1fr;
     justify-items: start;
-    margin-top: -48px;
+    margin-top: -52px;
     padding: 0 16px 20px;
     gap: 12px;
   }

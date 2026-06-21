@@ -18,6 +18,8 @@
 |------------------|-------------|----------|
 | `DATABASE_URL`   | **Да**      | Строка подключения PostgreSQL для Prisma. Пример ниже. |
 | `JWT_SECRET`     | Для продакшена | Секрет подписи JWT. В разработке, если не задать, используется `dev_secret` (не используйте в проде). |
+| `ADMIN_LOGIN`    | Нет         | Логин админ-панели. По умолчанию **admin**. |
+| `ADMIN_PASSWORD` | Нет         | Пароль админ-панели. По умолчанию **admin123**. |
 | `PORT`           | Нет         | Порт HTTP/WebSocket API. По умолчанию **4000**. |
 | `HOST`           | Нет         | Адрес прослушивания. По умолчанию **0.0.0.0** (удобно для доступа по LAN). |
 
@@ -110,3 +112,4 @@ npm run dev
 - **`DATABASE_URL is not set`** — создайте `backend/.env` и пропишите подключение к PostgreSQL.
 - **Ошибки миграций** — проверьте, что БД доступна и строка в `DATABASE_URL` верная; при первом развёртывании используйте `npx prisma migrate deploy`.
 - **Регистрация на Vercel падает с HTML / 404** — задайте **`NEXT_PUBLIC_API_BASE`** на URL бэкенда и пересоберите. Свой nginx с API на том же домене: **`NEXT_PUBLIC_API_SAME_ORIGIN=1`**.
+- **Админка `/admin` — 404 на `admin/login`** — в DevTools → Network посмотрите URL запроса. Если это `*.vercel.app/admin/login`, задайте **`NEXT_PUBLIC_API_BASE`** на Render и **Redeploy** фронта. Если URL — `*.onrender.com/admin/login`, пересоберите **бэкенд** на Render (Root Directory **`backend`**, последний коммит с `backend/src/admin/`).

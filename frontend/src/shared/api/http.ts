@@ -41,7 +41,7 @@ export async function apiRequest<T>(path: string, options?: RequestInit): Promis
   const errText = !response.ok ? await response.text() : '';
   if (!response.ok) {
     throwIfHtmlApiResponse(errText);
-    throw new Error(errText || 'Request failed');
+    throw new Error(`HTTP ${response.status}: ${errText || 'Request failed'}`);
   }
   const body = await response.text();
   throwIfHtmlApiResponse(body);
@@ -69,7 +69,7 @@ export async function apiFormPost<T>(path: string, formData: FormData): Promise<
   const errText = !response.ok ? await response.text() : '';
   if (!response.ok) {
     throwIfHtmlApiResponse(errText);
-    throw new Error(errText || 'Request failed');
+    throw new Error(`HTTP ${response.status}: ${errText || 'Request failed'}`);
   }
   const body = await response.text();
   throwIfHtmlApiResponse(body);

@@ -4,18 +4,23 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import type { FriendSummary } from '@/entities/user/model/friend';
 import type { User } from '@/entities/user/model/types';
+import {
+  fetchIncomingFriendRequests,
+  respondToFriendRequest,
+} from '@/shared/api/friends';
 import { apiRequest } from '@/shared/api/http';
-import { createSocialSocket } from '@/shared/lib/createSocialSocket';
+import { createSocialSocket, joinSocialUserRoom } from '@/shared/lib/createSocialSocket';
 import { SOCIAL_AUTH_SESSION_BUMP } from '@/shared/lib/authSession';
 import { SOCIAL_FRIENDS_CHANGED_EVENT } from '@/shared/lib/socialEvents';
 
 type PendingRequest = { requestId: string; sender: FriendSummary };
 
-type IncomingApiRow = { id: string; sender: FriendSummary };
+const INCOMING_POLL_MS = 20_000;
 
 export function FriendRequestNotifications() {
   const [pending, setPending] = useState<PendingRequest[]>([]);
   const [session, setSession] = useState(0);
+  const [respondingId, setRespondingId] = useState<string | null>(null);
 
   useEffect(() => {
     function onBump() {
@@ -25,7 +30,7 @@ export function FriendRequestNotifications() {
     return () => window.removeEventListener(SOCIAL_AUTH_SESSION_BUMP, onBump);
   }, []);
 
-  const mergeIncoming = useCallback((rows: IncomingApiRow[]) => {
+  const mergeIncoming = useCallback((rows: { id: string; sender: FriendSummary }[]) => {
     setPending((prev) => {
       const map = new Map(prev.map((p) => [p.requestId, p]));
       for (const r of rows) {
@@ -56,6 +61,16 @@ export function FriendRequestNotifications() {
 
     let cancelled = false;
     let sock: Socket | null = null;
+    let pollTimer: ReturnType<typeof setInterval> | undefined;
+
+    const refreshIncoming = async (userId: string) => {
+      try {
+        const rows = await fetchIncomingFriendRequests(userId);
+        if (!cancelled) mergeIncoming(rows);
+      } catch {
+        /* ignore */
+      }
+    };
 
     void (async () => {
       let me: User;
@@ -66,21 +81,15 @@ export function FriendRequestNotifications() {
       }
       if (cancelled) return;
 
-      try {
-        const rows = await apiRequest<IncomingApiRow[]>(
-          `/social/friends/requests/incoming?userId=${encodeURIComponent(me.userId)}`,
-        );
-        if (cancelled) return;
-        mergeIncoming(rows);
-      } catch {
-        /* ignore */
-      }
+      await refreshIncoming(me.userId);
+
+      pollTimer = setInterval(() => {
+        void refreshIncoming(me.userId);
+      }, INCOMING_POLL_MS);
 
       sock = createSocialSocket();
-      sock.on('connect_error', () => {
-        /* тихо: бэкенд выключен или неверный NEXT_PUBLIC_API_BASE */
-      });
-      sock.emit('join', { userId: me.userId });
+      sock.on('connect_error', () => undefined);
+      joinSocialUserRoom(sock, me.userId);
       sock.on('friend_request', (payload: { requestId: string; sender: FriendSummary }) => {
         addOne(payload.requestId, payload.sender);
       });
@@ -91,23 +100,23 @@ export function FriendRequestNotifications() {
 
     return () => {
       cancelled = true;
+      if (pollTimer) clearInterval(pollTimer);
       sock?.disconnect();
     };
-  }, [session, mergeIncoming, addOne]);
+  }, [session, mergeIncoming, addOne, remove]);
 
   const respond = async (requestId: string, accepted: boolean) => {
+    setRespondingId(requestId);
     try {
-      await apiRequest(`/social/friends/${requestId}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accepted }),
-      });
+      await respondToFriendRequest(requestId, accepted);
       remove(requestId);
       if (accepted) {
         window.dispatchEvent(new CustomEvent(SOCIAL_FRIENDS_CHANGED_EVENT));
       }
     } catch {
-      alert('Не удалось обработать заявку. Попробуйте ещё раз.');
+      alert('Не удалось обработать заявку. Подождите, пока сервер проснётся, и попробуйте ещё раз.');
+    } finally {
+      setRespondingId(null);
     }
   };
 
@@ -122,12 +131,18 @@ export function FriendRequestNotifications() {
             <span className="muted friendReqToastHint">хочет добавиться в друзья</span>
           </div>
           <div className="friendReqToastActions">
-            <button type="button" className="friendReqToastAccept" onClick={() => void respond(item.requestId, true)}>
-              Принять
+            <button
+              type="button"
+              className="friendReqToastAccept"
+              disabled={respondingId === item.requestId}
+              onClick={() => void respond(item.requestId, true)}
+            >
+              {respondingId === item.requestId ? '…' : 'Принять'}
             </button>
             <button
               type="button"
               className="friendReqToastDecline ghost"
+              disabled={respondingId === item.requestId}
               onClick={() => void respond(item.requestId, false)}
             >
               Отклонить

@@ -6,8 +6,12 @@ import { useCallback, useEffect, useState } from 'react';
 import type { Socket } from 'socket.io-client';
 import { FriendSummary } from '@/entities/user/model/friend';
 import { User } from '@/entities/user/model/types';
+import {
+  fetchIncomingFriendRequests,
+  respondToFriendRequest,
+} from '@/shared/api/friends';
 import { apiRequest } from '@/shared/api/http';
-import { createSocialSocket } from '@/shared/lib/createSocialSocket';
+import { createSocialSocket, joinSocialUserRoom } from '@/shared/lib/createSocialSocket';
 import { AppSidebar } from '@/widgets/app-sidebar/ui/AppSidebar';
 import { SOCIAL_FRIENDS_CHANGED_EVENT } from '@/shared/lib/socialEvents';
 import { SiteHeader } from '@/widgets/site-header/ui/SiteHeader';
@@ -24,9 +28,7 @@ export default function NotificationsPage() {
     if (!user?.userId) return;
     setIncomingLoadError('');
     try {
-      const rows = await apiRequest<Array<{ id: string; sender: FriendSummary }>>(
-        `/social/friends/requests/incoming?userId=${encodeURIComponent(user.userId)}`,
-      );
+      const rows = await fetchIncomingFriendRequests(user.userId);
       setIncomingFriendRequests(Array.isArray(rows) ? rows : []);
     } catch {
       setIncomingLoadError('Не удалось загрузить заявки. Обновите страницу.');
@@ -36,17 +38,13 @@ export default function NotificationsPage() {
 
   const respondIncomingRequest = useCallback(async (requestId: string, accepted: boolean) => {
     try {
-      await apiRequest(`/social/friends/${requestId}/respond`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ accepted }),
-      });
+      await respondToFriendRequest(requestId, accepted);
       setIncomingFriendRequests((prev) => prev.filter((r) => r.id !== requestId));
       if (accepted) {
         window.dispatchEvent(new CustomEvent(SOCIAL_FRIENDS_CHANGED_EVENT));
       }
     } catch {
-      alert('Не удалось обработать заявку. Попробуйте ещё раз.');
+      alert('Не удалось обработать заявку. Подождите, пока сервер проснётся, и попробуйте ещё раз.');
     }
   }, []);
 
@@ -66,13 +64,18 @@ export default function NotificationsPage() {
 
   useEffect(() => {
     void loadIncomingFriendRequests();
-  }, [loadIncomingFriendRequests]);
+    if (!user?.userId) return;
+    const pollTimer = setInterval(() => {
+      void loadIncomingFriendRequests();
+    }, 20_000);
+    return () => clearInterval(pollTimer);
+  }, [loadIncomingFriendRequests, user?.userId]);
 
   useEffect(() => {
     if (!user) return;
     const sock: Socket = createSocialSocket();
     sock.on('connect_error', () => undefined);
-    sock.emit('join', { userId: user.userId });
+    joinSocialUserRoom(sock, user.userId);
     sock.on('friend_request', (payload: { requestId: string; sender: FriendSummary }) => {
       setIncomingFriendRequests((prev) => {
         if (prev.some((r) => r.id === payload.requestId)) return prev;

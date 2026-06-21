@@ -1,3 +1,4 @@
+import { apiRequest } from './http';
 import { getApiBase } from '../config/api';
 import { parseApiError } from '../lib/parseApiError';
 
@@ -8,39 +9,51 @@ function adminHeaders(token: string, extra?: HeadersInit): HeadersInit {
   };
 }
 
+function adminNotFoundError(path: string): Error {
+  const base = getApiBase();
+  const onFrontendHost =
+    typeof window !== 'undefined' &&
+    (base === `${window.location.protocol}//${window.location.host}` ||
+      base.includes('.vercel.app') ||
+      base.includes('.now.sh'));
+  if (onFrontendHost) {
+    return new Error(
+      `Маршрут ${path} не найден: запрос ушёл на фронт (${base}), а не на Nest API. ` +
+        'В Vercel задайте NEXT_PUBLIC_API_BASE = HTTPS URL бэкенда на Render и пересоберите деплой.',
+    );
+  }
+  return new Error(
+    `Маршрут ${path} не найден на API (${base}). Задеплойте бэкенд на Render с последним кодом (модуль admin/) и проверьте Root Directory = backend.`,
+  );
+}
+
 async function adminFetch<T>(path: string, token: string, options?: RequestInit): Promise<T> {
-  let response: Response;
   try {
-    response = await fetch(`${getApiBase()}${path}`, {
+    return await apiRequest<T>(path, {
       ...options,
       headers: adminHeaders(token, options?.headers),
     });
   } catch (e) {
-    if (e instanceof TypeError) {
-      throw new Error(`Сервер API недоступен (${getApiBase()})`);
+    if (e instanceof Error && e.message.includes('HTTP 404')) {
+      throw adminNotFoundError(path);
     }
     throw e;
   }
-  const errText = !response.ok ? await response.text() : '';
-  if (!response.ok) {
-    throw new Error(parseApiError(new Error(errText || 'Request failed')));
-  }
-  const body = await response.text();
-  if (!body) return undefined as T;
-  return JSON.parse(body) as T;
 }
 
 export async function adminLogin(login: string, password: string) {
-  const response = await fetch(`${getApiBase()}/admin/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ login, password }),
-  });
-  const errText = !response.ok ? await response.text() : '';
-  if (!response.ok) {
-    throw new Error(parseApiError(new Error(errText || 'Request failed')));
+  try {
+    return await apiRequest<{ accessToken: string }>('/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login, password }),
+    });
+  } catch (e) {
+    if (e instanceof Error && (e.message.includes('HTTP 404') || e.message.includes('HTML'))) {
+      throw adminNotFoundError('/admin/login');
+    }
+    throw new Error(parseApiError(e, 'Неверный логин или пароль'));
   }
-  return (await response.json()) as { accessToken: string };
 }
 
 export function deleteAdminPost(token: string, postId: string) {

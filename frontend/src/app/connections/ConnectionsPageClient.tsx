@@ -13,7 +13,7 @@ import { FriendSummary } from '@/entities/user/model/friend';
 import { User } from '@/entities/user/model/types';
 import { ChatCard } from '@/features/chat/ui/ChatCard';
 import { apiFormPost, apiRequest } from '@/shared/api/http';
-import { createSocialSocket } from '@/shared/lib/createSocialSocket';
+import { createSocialSocket, joinSocialUserRoom } from '@/shared/lib/createSocialSocket';
 import { AppSidebar } from '@/widgets/app-sidebar/ui/AppSidebar';
 import { SOCIAL_FRIENDS_CHANGED_EVENT } from '@/shared/lib/socialEvents';
 import { SiteHeader } from '@/widgets/site-header/ui/SiteHeader';
@@ -160,7 +160,7 @@ export function ConnectionsPageClient() {
     if (!user) return;
     const sock = createSocialSocket();
     sock.on('connect_error', () => undefined);
-    sock.emit('join', { userId: user.userId });
+    joinSocialUserRoom(sock, user.userId);
     sock.on('new_message', (msg: MessageEntity) => {
       void refreshChatList();
       const peer = chatWithIdRef.current;
